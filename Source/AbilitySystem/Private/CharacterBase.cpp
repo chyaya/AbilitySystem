@@ -2,10 +2,13 @@
 
 #include "CharacterBase.h"
 #include "AttributeSetBase.h"
+#include "AIController.h"
+#include "BrainComponent.h"
 
 // Sets default values
 ACharacterBase::ACharacterBase()
 	: bIsDead(false)
+	, TeamID(255)
 {
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -21,6 +24,7 @@ void ACharacterBase::BeginPlay()
 
 	AttributeSetBaseComp->OnHealthChange.AddDynamic(this, &ACharacterBase::OnHealthChanged);
 
+	AutoDeterminTeamIDbyControllerType();
 }
 
 // Called every frame
@@ -61,10 +65,42 @@ void ACharacterBase::OnHealthChanged(float Health, float MaxHealth)
 	if (Health <= 0.0f && !bIsDead)
 	{
 		bIsDead = true;
-
+		Dead();
 		BP_Die();
 	}
 
 	BP_OnHealthChanged(Health, MaxHealth);
+}
+
+bool ACharacterBase::IsOtherHostile(ACharacterBase * Other)
+{
+	return TeamID != Other->GetTeamID();
+}
+
+void ACharacterBase::AutoDeterminTeamIDbyControllerType()
+{
+	if(GetController() && GetController()->IsPlayerController())
+	{
+		TeamID = 0;
+	}
+}
+
+void ACharacterBase::Dead()
+{
+	APlayerController* PC = Cast<APlayerController>(GetController());
+
+	if (PC)
+	{
+		PC->DisableInput(PC);
+
+
+	}
+
+	AAIController* AIC = Cast<AAIController>(GetController());
+
+	if(AIC)
+	{
+		AIC->GetBrainComponent()->StopLogic("Dead");
+	}
 }
 
